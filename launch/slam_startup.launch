@@ -7,7 +7,7 @@
   <!-- Ego vehicle -->
   <arg name='role_name' default='ego_vehicle'/>
   <arg name="vehicle_filter" default='vehicle.*'/>
-  <arg name="spawn_point" default=""/><!-- use comma separated format "x,y,z,roll,pitch,yaw" -->
+  <arg name="spawn_point" default="-55, -190, 0.3, 0, 0, 0"/><!-- use comma separated format "x,y,z,roll,pitch,yaw" -->
 
   <!-- Map to load on startup (either a predefined CARLA town (e.g. 'Town01'), or a OpenDRIVE map file) -->
   <arg name="town" default=''/>
@@ -38,10 +38,6 @@
     <arg name="spawn_sensors_only" value="false"/>
   </include>
 
-  <include file="$(find carla_manual_control)/launch/carla_manual_control.launch">
-    <arg name='role_name' value='$(arg role_name)'/>
-  </include>
-
 
   <node pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" name="pointcloud_to_laserscan" output="screen">
     <!-- Input PointCloud topic -->
@@ -50,7 +46,7 @@
     <rosparam>
         target_frame: ego_vehicle      # Transform scan to the ego vehicle frame
         transform_tolerance: 0.05      # Increase tolerance for minor TF delays (50 ms)
-        min_height: 0.5            # Include lower points (ground reflections)
+        min_height: 0.1            # Include lower points (ground reflections)
         max_height: 5               # Capture more lidar points near vehicle height
 
         angle_min: -3.14159           # Full 360° coverage (if lidar provides it)
@@ -71,6 +67,7 @@
 
   <node name="rviz" pkg="rviz" type="rviz" output="screen" args="-d $(find carla-startup)/rviz/carla_config.rviz">
     <param name="use_sim_time" value="true"/>
+    <remap from="/move_base_simple/goal" to="/carla/$(arg role_name)/goal" />
   </node>
 
     
@@ -80,6 +77,26 @@
     <remap from="/scan" to="/carla/$(arg role_name)/scan"/>
     <rosparam command="load" file="$(find carla-startup)/config/test_config.yaml" />
   </node>
+
+  <arg name="target_speed" default="8.33"/> <!-- target speed in m/s that the agent tries to follow -->
+  <node pkg="rostopic" type="rostopic" name="rostopic" args="pub /carla/$(arg role_name)/target_speed std_msgs/Float64 $(arg target_speed)"/>
+
+   <arg name="avoid_risk" default="False"/>
+  <include file="$(find carla_ad_agent)/launch/carla_ad_agent.launch">
+    <arg name="role_name" value="$(arg role_name)" />
+    <arg name="avoid_risk" value="$(arg avoid_risk)" />
+  </include>
+
+  <include file="$(find carla_waypoint_publisher)/launch/carla_waypoint_publisher.launch">
+    <arg name='host' value='$(arg host)'/>
+    <arg name='port' value='$(arg port)'/>
+    <arg name='timeout' value='$(arg timeout)'/>
+    <arg name='role_name' value='$(arg role_name)'/>
+  </include>
+
+  <include file="$(find carla_manual_control)/launch/carla_manual_control.launch">
+    <arg name='role_name' value='$(arg role_name)'/>
+  </include>
 
 </launch>
 
