@@ -2,12 +2,13 @@
   <!-- CARLA connection -->
   <arg name='host' default='172.31.64.1'/>
   <arg name='port' default='2000'/>
-  <arg name='timeout' default='10'/>
+  <arg name='timeout' default='50'/>
 
   <!-- Ego vehicle -->
   <arg name='role_name' default='ego_vehicle'/>
   <arg name="vehicle_filter" default='vehicle.*'/>
-  <arg name="spawn_point" default="-55, -190, 0.3, 0, 0, 0"/><!-- use comma separated format "x,y,z,roll,pitch,yaw" -->
+  <arg name="spawn_point" default="-55, -190, 0.3, 0, 0, 0"/>
+  <!-- <arg name="spawn_point" default=""/> -->
 
   <!-- Map to load on startup (either a predefined CARLA town (e.g. 'Town01'), or a OpenDRIVE map file) -->
   <arg name="town" default=''/>
@@ -78,7 +79,7 @@
     <rosparam command="load" file="$(find carla-startup)/config/test_config.yaml" />
   </node>
 
-  <arg name="target_speed" default="8.33"/> <!-- target speed in m/s that the agent tries to follow -->
+  <arg name="target_speed" default="2"/> <!-- target speed in m/s that the agent tries to follow -->
   <node pkg="rostopic" type="rostopic" name="rostopic" args="pub /carla/$(arg role_name)/target_speed std_msgs/Float64 $(arg target_speed)"/>
 
    <arg name="avoid_risk" default="False"/>
@@ -87,12 +88,16 @@
     <arg name="avoid_risk" value="$(arg avoid_risk)" />
   </include>
 
-  <include file="$(find carla_waypoint_publisher)/launch/carla_waypoint_publisher.launch">
-    <arg name='host' value='$(arg host)'/>
-    <arg name='port' value='$(arg port)'/>
-    <arg name='timeout' value='$(arg timeout)'/>
-    <arg name='role_name' value='$(arg role_name)'/>
-  </include>
+  <!-- This is for AStar. It considers the middle of rear vehicle -->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="rear_tf_publisher" args="-1.437 0 0 0 0 0 1 $(arg role_name) $(arg role_name)_rear" />
+
+
+  <node pkg="carla-startup" type="path_planner.py" name="path_planner" output="screen">
+    <param name="role_name" value="$(arg role_name)" />
+    <param name="host" value="$(arg host)" />
+    <param name="port" value="$(arg port)" />
+    <param name="timeout" value="$(arg timeout)" />
+  </node>
 
   <include file="$(find carla_manual_control)/launch/carla_manual_control.launch">
     <arg name='role_name' value='$(arg role_name)'/>
