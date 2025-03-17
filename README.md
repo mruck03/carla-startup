@@ -41,4 +41,4 @@ roscore
 ```
 After this, you can run the launch file in another terminal to create a car and start the self parking loop!
 ```
-roslaunch self-parking-carla-ros slam_startup.launch
+roslaunch carla-startup slam_startup.launch
