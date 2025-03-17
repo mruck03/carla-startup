@@ -14,7 +14,7 @@ To start using this package, follow directions for Carla Ros Bridge to create a 
 mkdir -p ~/carla-ros-bridge/catkin_ws/src
 cd ~/carla-ros-bridge
 git clone --recurse-submodules https://github.com/carla-simulator/ros-bridge.git catkin_ws/src/ros-bridge
-git clone --recurse-submodules https://github.com/mruck03/self-parking-carla-ros.git
+git clone --recurse-submodules https://github.com/mruck03/carla-startup.git
 ```
 
 
