@@ -162,7 +162,7 @@ class AstarPathPlanner(CompatibleNode):
         self.loginfo("Received new map, trigger rerouting...")
         current_time = time.time()
 
-        update_time = self.get_param("astar_update", 5)
+        update_time = self.get_param("astar_update", 1)
 
         if current_time - self.last_map_update_time >= update_time:
             self.last_map_update_time = current_time
@@ -246,18 +246,25 @@ class AstarPathPlanner(CompatibleNode):
         origin_y = self.slam_map.info.origin.position.y
 
         occ = np.array(self.slam_map.data).reshape((map_height, map_width))
+        
+        occupied_indices = np.column_stack(np.where(occ == 100))
 
-        occupied_indices = np.column_stack(np.where(occ > 50))
-
-        occupied_points_world = np.array([
-            [x * map_res + origin_x, y * map_res + origin_y] 
-            for x, y in occupied_indices
+        occupied_points_world = np.column_stack([
+            occupied_indices[:, 0] * map_res + origin_x, 
+            occupied_indices[:, 1] * map_res + origin_y
         ])
 
+        obs_dist = 5
+        mask = ((occupied_points_world[:, 0] < cur_trans[0] + obs_dist) & (occupied_points_world[:, 0] > cur_trans[0] - obs_dist)
+                & (occupied_points_world[:, 1] < cur_trans[1] + obs_dist) & (occupied_points_world[:, 1] > cur_trans[1] - obs_dist))
+        occupied_points_world = occupied_points_world[mask]
+
+        # print(occupied_points_world.shape)
+        # print(occupied_points_world[0:10])
 
         route, _ = hybrid_astar_planning(cur_trans[0], cur_trans[1], cur_rot[2],
                                       goal.location.x, -goal.location.y, goal_rot[2], 
-                                      occupied_points_world[:, 0], occupied_points_world[:, 1], 3.0, np.deg2rad(15.0)) #TODO: input map into astar
+                                      occupied_points_world[:, 0], occupied_points_world[:, 1], 0.2, np.deg2rad(2.0)) #TODO: input map into astar
 
         if route is not None:
             self.loginfo("Succesfully Found Route!")

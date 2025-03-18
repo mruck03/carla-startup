@@ -26,7 +26,7 @@ class C:  # Parameter config
     MOVE_STEP = 0.4  # [m] path interporate resolution
     # increase this to increase accuracy
     N_STEER = 20.0  # steer command number
-    COLLISION_CHECK_STEP = 5  # skip number for collision check
+    COLLISION_CHECK_STEP = 3  # skip number for collision check
     EXTEND_BOUND = 1  # collision check range extended
 
     GEAR_COST = 100.0  # switch back penalty cost
@@ -43,7 +43,7 @@ class C:  # Parameter config
     WB = 2.875  # [m] Wheel base (Tesla Model 3)
     TR = 0.337  # [m] Tyre radius (Tesla Model 3)
     TW = 0.205  # [m] Tyre width (Tesla Model 3)
-    MAX_STEER = 0.61  # [rad] maximum steering angle (unchanged, assuming similar to general vehicles)
+    MAX_STEER = 0.5  # [rad] maximum steering angle (unchanged, assuming similar to general vehicles)
 
 
 
@@ -115,12 +115,17 @@ def hybrid_astar_planning(sx, sy, syaw, gx, gy, gyaw, ox, oy, xyreso, yawreso):
     nstart = Node(sxr, syr, syawr, 1, [sx], [sy], [syaw], [1], 0.0, 0.0, -1)
     ngoal = Node(gxr, gyr, gyawr, 1, [gx], [gy], [gyaw], [1], 0.0, 0.0, -1)
 
+    print(f"Starting path planning from x = {sx}, y = {sy}")
+
     # In a dynamic online problem, this tree will be built dynamically I suppose 
+    # print("before kd")
     kdtree = kd.KDTree([[x, y] for x, y in zip(ox, oy)])
     P = calc_parameters(sx, sy, gx, gy, ox, oy, xyreso, yawreso, kdtree)
+    # print("after kdtree")
 
+    # print("")
     hmap = astar.calc_holonomic_heuristic_with_obstacle(ngoal, P.ox, P.oy, P.minx, P.maxx, P.miny, P.maxy, P.xyreso, C.EXTEND_BOUND)
-    print("hmap", len(hmap), len(hmap[0]))
+    # print("hmap", len(hmap), len(hmap[0]))
     steer_set, direc_set = calc_motion_set()
     ind = calc_index(nstart, P)
     open_set, closed_set = {ind: nstart}, {}
@@ -128,6 +133,7 @@ def hybrid_astar_planning(sx, sy, syaw, gx, gy, gyaw, ox, oy, xyreso, yawreso):
     qp = QueuePrior()
     qp.put(ind, calc_hybrid_cost(nstart, hmap, P))
 
+    # print("Starting Planning!")
     while True:
         if not open_set:
             return None, closed_set
@@ -152,7 +158,7 @@ def hybrid_astar_planning(sx, sy, syaw, gx, gy, gyaw, ox, oy, xyreso, yawreso):
 
         if update:
             fnode = fpath
-            print("direction and steer", fnode.direction, fnode.steer)
+            # print("direction and steer", fnode.direction, fnode.steer)
             break
 
         for i in range(len(steer_set)):
@@ -161,6 +167,7 @@ def hybrid_astar_planning(sx, sy, syaw, gx, gy, gyaw, ox, oy, xyreso, yawreso):
                 
             #     print("node", node)
             if not node:
+                # print("Went to if not node")
                 continue
 
             node_ind = calc_index(node, P)
@@ -168,6 +175,7 @@ def hybrid_astar_planning(sx, sy, syaw, gx, gy, gyaw, ox, oy, xyreso, yawreso):
             # NOTE: Need to modify this if we want to allow 
             #       jake to explore areas that are explored
             if node_ind in closed_set:
+                # print("Node in closed set already!")
                 continue
 
             cur_cost = calc_hybrid_cost(node, hmap, P)
@@ -268,6 +276,7 @@ def is_index_ok(xind, yind, xlist, ylist, yawlist, P):
     nodeyaw = [yawlist[k] for k in ind]
 
     if is_collision(nodex, nodey, nodeyaw, P):
+        # print(f"Node is a collision at x = {nodex}, y = {nodey}!")
         return False
 
     return True
