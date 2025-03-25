@@ -162,7 +162,7 @@ class AstarPathPlanner(CompatibleNode):
         self.loginfo("Received new map, trigger rerouting...")
         current_time = time.time()
 
-        update_time = self.get_param("astar_update", 1)
+        update_time = self.get_param("astar_update", 1.5)
 
         if current_time - self.last_map_update_time >= update_time:
             self.last_map_update_time = current_time
@@ -250,21 +250,24 @@ class AstarPathPlanner(CompatibleNode):
         occupied_indices = np.column_stack(np.where(occ == 100))
 
         occupied_points_world = np.column_stack([
-            occupied_indices[:, 0] * map_res + origin_x, 
-            occupied_indices[:, 1] * map_res + origin_y
+            occupied_indices[:, 1] * map_res + origin_x,  # x-coordinates
+            occupied_indices[:, 0] * map_res + origin_y   # y-coordinates
         ])
+        
 
-        obs_dist = 5
-        mask = ((occupied_points_world[:, 0] < cur_trans[0] + obs_dist) & (occupied_points_world[:, 0] > cur_trans[0] - obs_dist)
-                & (occupied_points_world[:, 1] < cur_trans[1] + obs_dist) & (occupied_points_world[:, 1] > cur_trans[1] - obs_dist))
+        obs_dist = 7
+        mask = (np.abs(occupied_points_world[:, 0] - cur_trans[0]) < obs_dist) & (np.abs(occupied_points_world[:, 1] - cur_trans[1]) < obs_dist)
         occupied_points_world = occupied_points_world[mask]
 
         # print(occupied_points_world.shape)
         # print(occupied_points_world[0:10])
 
+        if occupied_points_world.size == 0:
+            occupied_points_world = np.array([[0.0, 0.0], [0.01, 0.01]])
+
         route, _ = hybrid_astar_planning(cur_trans[0], cur_trans[1], cur_rot[2],
                                       goal.location.x, -goal.location.y, goal_rot[2], 
-                                      occupied_points_world[:, 0], occupied_points_world[:, 1], 0.2, np.deg2rad(2.0)) #TODO: input map into astar
+                                      occupied_points_world[:, 0], occupied_points_world[:, 1], 0.5, np.deg2rad(9.0)) #TODO: input map into astar
 
         if route is not None:
             self.loginfo("Succesfully Found Route!")
@@ -282,6 +285,8 @@ class AstarPathPlanner(CompatibleNode):
         msg.header.stamp = roscomp.ros_timestamp(self.get_time(), from_sec=True)
         if self.current_route is not None:
             for i in range(len(self.current_route.x)):
+                if i == 0:
+                    continue
                 pose = PoseStamped()
                 # pose.pose = trans.carla_transform_to_ros_pose(wp[0].transform)
 

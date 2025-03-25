@@ -79,7 +79,7 @@
     <rosparam command="load" file="$(find carla-startup)/config/test_config.yaml" />
   </node>
 
-  <arg name="target_speed" default="2"/> <!-- target speed in m/s that the agent tries to follow -->
+  <arg name="target_speed" default="4"/> <!-- target speed in m/s that the agent tries to follow -->
   <node pkg="rostopic" type="rostopic" name="rostopic" args="pub /carla/$(arg role_name)/target_speed std_msgs/Float64 $(arg target_speed)"/>
 
    <arg name="avoid_risk" default="False"/>
@@ -102,6 +102,13 @@
   <include file="$(find carla_manual_control)/launch/carla_manual_control.launch">
     <arg name='role_name' value='$(arg role_name)'/>
   </include>
+
+  <node pkg="carla-startup" type="spawn_pedestrian.py" name="pedestrian_spawner" output="screen">
+    <param name="role_name" value="$(arg role_name)" />
+    <param name="host" value="$(arg host)" />
+    <param name="port" value="$(arg port)" />
+    <param name="timeout" value="$(arg timeout)" />
+  </node>
 
 </launch>
 

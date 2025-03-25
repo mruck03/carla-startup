@@ -23,14 +23,14 @@ class C:  # Parameter config
     XY_RESO = 2.0  # [m]
     # Decrease this to increase accuracy
     YAW_RESO = np.deg2rad(15.0)  # [rad]
-    MOVE_STEP = 0.4  # [m] path interporate resolution
+    MOVE_STEP = 0.8  # [m] path interporate resolution
     # increase this to increase accuracy
     N_STEER = 20.0  # steer command number
     COLLISION_CHECK_STEP = 3  # skip number for collision check
     EXTEND_BOUND = 1  # collision check range extended
 
     GEAR_COST = 100.0  # switch back penalty cost
-    BACKWARD_COST = 5.0  # backward penalty cost
+    BACKWARD_COST = 20.0  # backward penalty cost
     
     STEER_CHANGE_COST = 5.0  # steer angle change penalty cost
     STEER_ANGLE_COST = 5.0  # steer angle penalty cost
@@ -43,7 +43,7 @@ class C:  # Parameter config
     WB = 2.875  # [m] Wheel base (Tesla Model 3)
     TR = 0.337  # [m] Tyre radius (Tesla Model 3)
     TW = 0.205  # [m] Tyre width (Tesla Model 3)
-    MAX_STEER = 0.5  # [rad] maximum steering angle (unchanged, assuming similar to general vehicles)
+    MAX_STEER = 0.4  # [rad] maximum steering angle (unchanged, assuming similar to general vehicles)
 
 
 

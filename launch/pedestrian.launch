@@ -1,0 +1,41 @@
+<launch>
+  <!-- CARLA connection -->
+  <arg name='host' default='172.31.64.1'/>
+  <arg name='port' default='2000'/>
+  <arg name='timeout' default='50'/>
+
+  <!-- Ego vehicle -->
+  <arg name='role_name' default='ego_vehicle'/>
+  <arg name="vehicle_filter" default='vehicle.*'/>
+  <arg name="spawn_point" default="-55, -190, 0.3, 0, 0, 0"/>
+  <!-- <arg name="spawn_point" default=""/> -->
+
+  <!-- Map to load on startup (either a predefined CARLA town (e.g. 'Town01'), or a OpenDRIVE map file) -->
+  <arg name="town" default=''/>
+
+  <!-- Enable/disable passive mode -->
+  <arg name='passive' default=''/>
+
+  <!-- Synchronous mode-->
+  <arg name='synchronous_mode_wait_for_vehicle_control_command' default='False'/>
+  <arg name='fixed_delta_seconds' default='0.05'/>
+
+
+  <include file="$(find carla_ros_bridge)/launch/carla_ros_bridge.launch">
+    <arg name='host' value='$(arg host)'/>
+    <arg name='port' value='$(arg port)'/>
+    <arg name='town' value='$(arg town)'/>
+    <arg name='timeout' value='$(arg timeout)'/>
+    <arg name='passive' value='$(arg passive)'/>
+    <arg name='synchronous_mode_wait_for_vehicle_control_command' value='$(arg synchronous_mode_wait_for_vehicle_control_command)'/>
+    <arg name='fixed_delta_seconds' value='$(arg fixed_delta_seconds)'/>
+  </include>  
+  
+  <node pkg="carla-startup" type="spawn_pedestrian.py" name="pedestrian_spawner" output="screen">
+    <param name="role_name" value="$(arg role_name)" />
+    <param name="host" value="$(arg host)" />
+    <param name="port" value="$(arg port)" />
+    <param name="timeout" value="$(arg timeout)" />
+  </node>
+
+</launch>
