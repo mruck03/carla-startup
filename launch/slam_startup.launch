@@ -110,5 +110,12 @@
     <param name="timeout" value="$(arg timeout)" />
   </node>
 
+  <node pkg="carla-startup" type="lidar_ped_avoidance.py" name="pedestrian_avoidance" output="screen">
+    <param name="role_name" value="$(arg role_name)" />
+    <param name="host" value="$(arg host)" />
+    <param name="port" value="$(arg port)" />
+    <param name="timeout" value="$(arg timeout)" />
+  </node>
+
 </launch>
 
