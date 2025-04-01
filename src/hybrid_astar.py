@@ -29,8 +29,8 @@ class C:  # Parameter config
     COLLISION_CHECK_STEP = 3  # skip number for collision check
     EXTEND_BOUND = 1  # collision check range extended
 
-    GEAR_COST = 100.0  # switch back penalty cost
-    BACKWARD_COST = 20.0  # backward penalty cost
+    GEAR_COST = 10000.0  # switch back penalty cost
+    BACKWARD_COST = 2000.0  # backward penalty cost
     
     STEER_CHANGE_COST = 5.0  # steer angle change penalty cost
     STEER_ANGLE_COST = 5.0  # steer angle penalty cost
@@ -43,7 +43,7 @@ class C:  # Parameter config
     WB = 2.875  # [m] Wheel base (Tesla Model 3)
     TR = 0.337  # [m] Tyre radius (Tesla Model 3)
     TW = 0.205  # [m] Tyre width (Tesla Model 3)
-    MAX_STEER = 0.4  # [rad] maximum steering angle (unchanged, assuming similar to general vehicles)
+    MAX_STEER = 0.5  # [rad] maximum steering angle (unchanged, assuming similar to general vehicles)
 
 
 
@@ -119,7 +119,9 @@ def hybrid_astar_planning(sx, sy, syaw, gx, gy, gyaw, ox, oy, xyreso, yawreso):
 
     # In a dynamic online problem, this tree will be built dynamically I suppose 
     # print("before kd")
-    kdtree = kd.KDTree([[x, y] for x, y in zip(ox, oy)])
+    obstacles = np.column_stack((ox, oy))  # Faster than list comprehension
+    # Create KDTree
+    kdtree = kd.KDTree(obstacles)
     P = calc_parameters(sx, sy, gx, gy, ox, oy, xyreso, yawreso, kdtree)
     # print("after kdtree")
 

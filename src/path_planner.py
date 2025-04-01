@@ -173,6 +173,7 @@ class AstarPathPlanner(CompatibleNode):
         """
         Triggers a rerouting
         """
+        
         if self.ego_vehicle is None or self.goal is None:
             # no ego vehicle, remove route if published
             self.current_route = None
@@ -255,7 +256,7 @@ class AstarPathPlanner(CompatibleNode):
         ])
         
 
-        obs_dist = 7
+        obs_dist = 15
         mask = (np.abs(occupied_points_world[:, 0] - cur_trans[0]) < obs_dist) & (np.abs(occupied_points_world[:, 1] - cur_trans[1]) < obs_dist)
         occupied_points_world = occupied_points_world[mask]
 
@@ -283,9 +284,9 @@ class AstarPathPlanner(CompatibleNode):
         msg = Path()
         msg.header.frame_id = "map"
         msg.header.stamp = roscomp.ros_timestamp(self.get_time(), from_sec=True)
-        if self.current_route is not None:
+        if self.current_route is not None and len(self.current_route.x) > 3:
             for i in range(len(self.current_route.x)):
-                if i == 0:
+                if i == 0 and i == 1:
                     continue
                 pose = PoseStamped()
                 # pose.pose = trans.carla_transform_to_ros_pose(wp[0].transform)
@@ -300,8 +301,12 @@ class AstarPathPlanner(CompatibleNode):
                 shifted_y = self.current_route.y[i] + dy
 
                 #Publishes poses to ROS calculated by AStar
-                pose.pose.position.x = shifted_x
-                pose.pose.position.y = shifted_y
+                if i == len(self.current_route.x) - 1:
+                    pose.pose.position.x = self.current_route.x[i]
+                    pose.pose.position.y = self.current_route.y[i]
+                else:
+                    pose.pose.position.x = shifted_x
+                    pose.pose.position.y = shifted_y
                 # pose.pose.position.x = self.current_route.x[i]
                 # pose.pose.position.y = self.current_route.y[i]
                 pose.pose.position.z = 0.0  # Assuming flat path (no height)

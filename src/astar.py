@@ -92,55 +92,59 @@ def astar_planning(sx, sy, gx, gy, ox, oy, reso, rr):
     return pathx, pathy
 
 
+def optimized_u_cost(motion):
+    return abs(motion[0]) + abs(motion[1])  # Example heuristic
+
 def calc_holonomic_heuristic_with_obstacle(node, ox, oy, xmin, xmax, ymin, ymax, reso, rr):
     n_goal = Node(round(node.x[-1] / reso), round(node.y[-1] / reso), 0.0, -1)
 
-    ox = [x / reso for x in ox]
-    oy = [y / reso for y in oy]
+    ox = np.array(ox) / reso
+    oy = np.array(oy) / reso
 
     P, obsmap = calc_parameters(ox, oy, xmin, xmax, ymin, ymax, reso, rr)
 
-    open_set, closed_set = dict(), dict()
-    open_set[calc_index(n_goal, P)] = n_goal
+    open_set = {}
+    closed_set = set()  # Use a set for fast lookups
+    closed_nodes = {} 
+    n_goal_index = calc_index(n_goal, P)
+    open_set[n_goal_index] = n_goal
 
     q_priority = []
-    heapq.heappush(q_priority, (n_goal.cost, calc_index(n_goal, P)))
+    heapq.heappush(q_priority, (n_goal.cost, n_goal_index))
 
-    while True:
-        if not open_set:
-            break
-
+    while open_set:
         _, ind = heapq.heappop(q_priority)
-        n_curr = open_set[ind]
-        closed_set[ind] = n_curr
-        open_set.pop(ind)
+        n_curr = open_set.pop(ind)
+        closed_set.add(ind)
+        closed_nodes[ind] = n_curr 
 
-        for i in range(len(P.motion)):
-            node = Node(n_curr.x + P.motion[i][0],
-                        n_curr.y + P.motion[i][1],
-                        n_curr.cost + u_cost(P.motion[i]), ind)
+        for motion in P.motion:
+            new_x, new_y = n_curr.x + motion[0], n_curr.y + motion[1]
+            cost = n_curr.cost + optimized_u_cost(motion)
+
+            node = Node(new_x, new_y, cost, ind)
 
             if not check_node(node, P, obsmap):
                 continue
 
             n_ind = calc_index(node, P)
-            if n_ind not in closed_set:
-                if n_ind in open_set:
-                    if open_set[n_ind].cost > node.cost:
-                        open_set[n_ind].cost = node.cost
-                        open_set[n_ind].pind = ind
-                else:
-                    open_set[n_ind] = node
-                    heapq.heappush(q_priority, (node.cost, calc_index(node, P)))
+            if n_ind in closed_set:
+                continue
 
-    hmap = [[np.inf for _ in range(P.yw)] for _ in range(P.xw)]
+            if n_ind not in open_set or open_set[n_ind].cost > cost:
+                open_set[n_ind] = node
+                heapq.heappush(q_priority, (cost, n_ind))
 
-    # print(P.minx)
-    # print(P.maxx)
-    # print(P.miny)
-    # print(P.maxy)
-    for n in closed_set.values():
-        hmap[n.x - P.minx][n.y - P.miny] = n.cost
+    hmap = np.full((P.xw, P.yw), np.inf)  # Faster than list comprehension
+
+    indices = np.array(list(closed_nodes.keys()))  # Get all indices
+    nodes = np.array([closed_nodes[ind] for ind in indices])  # Extract all Node objects
+
+    x_indices = np.array([node.x for node in nodes]) - P.minx
+    y_indices = np.array([node.y for node in nodes]) - P.miny
+    costs = np.array([node.cost for node in nodes])
+
+    hmap[x_indices, y_indices] = costs
 
     return hmap
 
@@ -202,16 +206,30 @@ def calc_parameters(ox, oy, minx, maxx, miny, maxy, rr, reso):
 
 
 def calc_obsmap(ox, oy, rr, P):
-    obsmap = [[False for _ in range(P.yw)] for _ in range(P.xw)]
+    # obsmap = [[False for _ in range(P.yw)] for _ in range(P.xw)]
 
-    for x in range(P.xw):
-        xx = x + P.minx
-        for y in range(P.yw):
-            yy = y + P.miny
-            for oxx, oyy in zip(ox, oy):
-                if math.hypot(oxx - xx, oyy - yy) <= rr / P.reso:
-                    obsmap[x][y] = True
-                    break
+    # for x in range(P.xw):
+    #     xx = x + P.minx
+    #     for y in range(P.yw):
+    #         yy = y + P.miny
+    #         for oxx, oyy in zip(ox, oy):
+    #             if math.hypot(oxx - xx, oyy - yy) <= rr / P.reso:
+    #                 obsmap[x][y] = True
+    #                 break
+    # Create grid coordinates
+    x_range = np.arange(P.xw) + P.minx  # Shape: (P.xw,)
+    y_range = np.arange(P.yw) + P.miny  # Shape: (P.yw,)
+    
+    xx, yy = np.meshgrid(x_range, y_range, indexing="ij")  # Shape: (P.xw, P.yw)
+
+    # Compute distances from all obstacles
+    ox = np.array(ox)[:, None, None]  # Shape: (num_obstacles, 1, 1)
+    oy = np.array(oy)[:, None, None]  # Shape: (num_obstacles, 1, 1)
+
+    distances = np.sqrt((ox - xx) ** 2 + (oy - yy) ** 2)  # Shape: (num_obstacles, P.xw, P.yw)
+
+    # Check if any obstacle is within range
+    obsmap = np.any(distances <= (rr / P.reso), axis=0)  # Shape: (P.xw, P.yw)
 
     return obsmap
 
