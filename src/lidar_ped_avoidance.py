@@ -138,7 +138,7 @@ class PedestrianAvoidance(CompatibleNode):
         if self.prev_pedestrian_positions is not None and len(ped_pos) > 0 and len(self.prev_pedestrian_positions) > 0:
             dists = np.linalg.norm(ped_pos[:, None] - self.prev_pedestrian_positions[None, :], axis=2)
             min_dists = np.min(dists, axis=1)
-            is_moving = min_dists > 0.1  # movement threshold in meters/frame
+            is_moving = min_dists > 0.02  # movement threshold in meters/frame
 
             dynamic_pedestrians = ped_pos[is_moving]
         else:
@@ -178,18 +178,23 @@ class PedestrianAvoidance(CompatibleNode):
         filtered_pc_lidar = tf2_sensor_msgs.do_transform_cloud(filtered_pc_world, transform_map_to_lidar)
         self.filtered_pc_pub.publish(filtered_pc_lidar)
 
+        dynamic_points = points_world[dynamic_mask]
+        dynamic_pc_world = pc2.create_cloud(pc.header, filtered_fields, dynamic_points)
+        dynamic_pc_world.header.frame_id = "map"
+        dynamic_pc_lidar = tf2_sensor_msgs.do_transform_cloud(dynamic_pc_world, transform_map_to_lidar)
 
-        points = np.array(list(pc2.read_points(pc, field_names=("x", "y", "z", "ObjTag"), skip_nans=True)))
 
-        if points.size == 0:
+        dynamic_points = np.array(list(pc2.read_points(dynamic_pc_lidar, field_names=("x", "y", "z", "ObjTag"), skip_nans=True)))
+
+        if dynamic_points.size == 0:
             return
 
-        x = points[:, 0]
-        y = points[:, 1]
-        labels = points[:, 3]
+        x = dynamic_points[:, 0]
+        y = dynamic_points[:, 1]
+        labels = dynamic_points[:, 3]
 
         # Check for nearby pedestrians (label == 4) in front of the car
-        pedestrian_mask_nearby = (labels == 4) & (x > -1) & (x < 7) & (np.abs(y) < 4)
+        pedestrian_mask_nearby = (labels == 4) & (x > -1) & (x < 7) & (np.abs(y) < 4) #TODO: Adjust bounds based on vehicle desired speed or waypoints.
 
         if np.any(pedestrian_mask_nearby):
             print("Pedestrian detected nearby! Stopping vehicle.")

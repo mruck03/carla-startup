@@ -65,7 +65,31 @@ class AstarPathPlanner(CompatibleNode):
             self.get_actor_waypoint)
 
         # set initial goal
-        self.goal = self.world.get_map().get_spawn_points()[0]
+        # self.goal = self.world.get_map().get_spawn_points()[0]\
+        position_param = rospy.get_param('initial_goal/position', [0.0, 0.0, 0.0])
+        orientation_param = rospy.get_param('initial_goal/orientation', [0.0, 0.0, 0.0, 1.0])
+        position = position_param.split(',')
+        orientation = orientation_param.split(',')
+
+        print(position)
+        print(orientation)
+        print(position[0])
+        print(orientation[0])
+
+        goal = PoseStamped()
+        goal.header.frame_id = "map"
+        goal.header.stamp = rospy.Time.now()
+
+        goal.pose.position.x = float(position[0])
+        goal.pose.position.y = float(position[1])
+        goal.pose.position.z = float(position[2])
+
+        goal.pose.orientation.x = float(orientation[0])
+        goal.pose.orientation.y = float(orientation[1])
+        goal.pose.orientation.z = float(orientation[2])
+        goal.pose.orientation.w = float(orientation[3])
+
+        self.goal = trans.ros_pose_to_carla_transform(goal.pose)
 
         self.current_route = None
         self.goal_subscriber = self.new_subscription(
