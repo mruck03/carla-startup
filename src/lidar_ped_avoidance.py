@@ -20,6 +20,7 @@ from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Path
 from std_msgs.msg import Float64
 from sensor_msgs.msg import PointCloud2
+from sensor_msgs.msg import PointField
 import sensor_msgs.point_cloud2 as pc2
 import rospy
 
@@ -27,6 +28,10 @@ import tf
 import numpy as np
 
 from tf.transformations import quaternion_from_euler, euler_from_quaternion
+import tf2_sensor_msgs.tf2_sensor_msgs as tf2_sensor_msgs
+import tf2_ros
+import tf_conversions
+import geometry_msgs.msg
 
 import time
 
@@ -53,6 +58,7 @@ class PedestrianAvoidance(CompatibleNode):
             Float64, "/carla/{}/speed_command".format(self.role_name),
             QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL))
         
+        
         #Subscrive to SLAM map
         self.lidar_subscriber = self.new_subscription(
             PointCloud2,
@@ -69,6 +75,15 @@ class PedestrianAvoidance(CompatibleNode):
         self.tf_listener = tf.TransformListener()
         self.lidar_frame = "{}/semantic_lidar".format(self.role_name)  # e.g., "ego_vehicle"
         self.global_frame = "map"  # Assuming "map" is the global reference frame
+
+        self.prev_pedestrian_positions = None
+        self.filtered_pc_pub = self.new_publisher(
+            PointCloud2,
+            "/carla/{}/filtered_lidar".format(self.role_name),
+            QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL))
+        
+        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
 
     def destroy(self):
         """
@@ -90,17 +105,95 @@ class PedestrianAvoidance(CompatibleNode):
         # self.loginfo("Received goal, trigger rerouting...")
         # field_names = [field.name for field in pc.fields]
         # print("PointCloud2 fields:", field_names)
-        points = list(pc2.read_points(pc, field_names=("x", "y", "z", "ObjTag"), skip_nans=True))
+
+        # Unpack columns
+
+        try:
+            transform = self.tf_buffer.lookup_transform(
+                "map",               # target frame
+                pc.header.frame_id,  # source frame (e.g., "ego_vehicle/lidar")
+                pc.header.stamp,     # time
+                rospy.Duration(0.1)
+            )
+
+            pc_world = tf2_sensor_msgs.do_transform_cloud(pc, transform)
+
+            # now you can extract points from pc_world and compare across frames
+        except (tf2_ros.LookupException, tf2_ros.ExtrapolationException) as e:
+            rospy.logwarn("Transform failed: %s", e)
+            return
+
+        points_world = np.array(list(pc2.read_points(pc_world, field_names=("x", "y", "z", "ObjTag"), skip_nans=True)))
         
-        # if points:
-        #     print(f"First point: {points[0]}")  # Access the first point properly
+        x = points_world[:, 0]
+        y = points_world[:, 1]
+        labels = points_world[:, 3]
         
-        # Example: Check if a pedestrian (label 4, for example) is close
-        for point in points:
-            x, y, z, label = point
-            if label == 4 and -8 < x < 8 and abs(y) < 2:  # TODO: Use speed to detect when to stop
-                print("Pedestrian detected nearby! Stopping vehicle.")
-                self.emergencyStop()
+        pedestrian_mask = (labels == 4)
+
+        ped_pos = points_world[pedestrian_mask][:, :3]  # only x, y, z
+
+
+        # Estimate motion if we have previous frame
+        if self.prev_pedestrian_positions is not None and len(ped_pos) > 0 and len(self.prev_pedestrian_positions) > 0:
+            dists = np.linalg.norm(ped_pos[:, None] - self.prev_pedestrian_positions[None, :], axis=2)
+            min_dists = np.min(dists, axis=1)
+            is_moving = min_dists > 0.1  # movement threshold in meters/frame
+
+            dynamic_pedestrians = ped_pos[is_moving]
+        else:
+            dynamic_pedestrians = np.empty((0, 3))
+
+        # Update buffer
+        self.prev_pedestrian_positions = ped_pos
+
+        dynamic_mask = np.zeros(len(points_world), dtype=bool)
+        if len(dynamic_pedestrians) > 0:
+            # Create a KDTree for fast spatial matching
+            from scipy.spatial import cKDTree
+            cloud_kd = cKDTree(points_world[:, :3])
+            idxs = cloud_kd.query_ball_point(dynamic_pedestrians, r=0.2)  # tolerance radius
+            for group in idxs:
+                dynamic_mask[group] = True
+
+        filtered_points = points_world[~dynamic_mask]
+
+        filtered_fields = [
+            PointField(name='x', offset=0, datatype=PointField.FLOAT32, count=1),
+            PointField(name='y', offset=4, datatype=PointField.FLOAT32, count=1),
+            PointField(name='z', offset=8, datatype=PointField.FLOAT32, count=1),
+            PointField(name='ObjTag', offset=12, datatype=PointField.FLOAT32, count=1)
+        ]
+
+
+        transform_map_to_lidar = self.tf_buffer.lookup_transform(
+            pc.header.frame_id,  # target: lidar frame
+            "map",               # source: world/map frame
+            pc.header.stamp,
+            rospy.Duration(0.1)
+        )
+
+        filtered_pc_world = pc2.create_cloud(pc.header, filtered_fields, filtered_points)
+        filtered_pc_world.header.frame_id = "map"
+        filtered_pc_lidar = tf2_sensor_msgs.do_transform_cloud(filtered_pc_world, transform_map_to_lidar)
+        self.filtered_pc_pub.publish(filtered_pc_lidar)
+
+
+        points = np.array(list(pc2.read_points(pc, field_names=("x", "y", "z", "ObjTag"), skip_nans=True)))
+
+        if points.size == 0:
+            return
+
+        x = points[:, 0]
+        y = points[:, 1]
+        labels = points[:, 3]
+
+        # Check for nearby pedestrians (label == 4) in front of the car
+        pedestrian_mask_nearby = (labels == 4) & (x > -1) & (x < 7) & (np.abs(y) < 4)
+
+        if np.any(pedestrian_mask_nearby):
+            print("Pedestrian detected nearby! Stopping vehicle.")
+            self.emergencyStop()
 
     def emergencyStop(self):
         stopping_speed = Float64()

@@ -42,7 +42,7 @@
 
   <node pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" name="pointcloud_to_laserscan" output="screen">
     <!-- Input PointCloud topic -->
-    <remap from="cloud_in" to="/carla/$(arg role_name)/lidar"/>
+    <remap from="cloud_in" to="/carla/$(arg role_name)/filtered_lidar"/>
     <remap from="scan" to="/carla/$(arg role_name)/scan"/>
     <rosparam>
         target_frame: ego_vehicle      # Transform scan to the ego vehicle frame

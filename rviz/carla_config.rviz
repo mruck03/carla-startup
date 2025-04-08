@@ -92,7 +92,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: Intensity
       Decay Time: 0
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -107,7 +107,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Class: rviz/TF
       Enabled: true
       Filter (blacklist): ""
@@ -138,6 +138,8 @@ Visualization Manager:
         ego_vehicle/semantic_lidar:
           Value: true
         ego_vehicle/semantic_segmentation_front:
+          Value: true
+        ego_vehicle_rear:
           Value: true
         map:
           Value: true
@@ -174,6 +176,8 @@ Visualization Manager:
               ego_vehicle/semantic_lidar:
                 {}
               ego_vehicle/semantic_segmentation_front:
+                {}
+              ego_vehicle_rear:
                 {}
       Update Interval: 0
       Value: true
@@ -219,6 +223,34 @@ Visualization Manager:
       Topic: /carla/ego_vehicle/waypoints
       Unreliable: false
       Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: Intensity
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Min Color: 0; 0; 0
+      Name: PointCloud2
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.009999999776482582
+      Style: Flat Squares
+      Topic: /carla/ego_vehicle/filtered_lidar
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -247,7 +279,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 61.1551513671875
+      Distance: 30.015796661376953
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -263,9 +295,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5897970199584961
+      Pitch: 0.6097967028617859
       Target Frame: ego_vehicle
-      Yaw: 4.600402355194092
+      Yaw: 1.1422128677368164
     Saved: ~
 Window Geometry:
   Displays:
@@ -283,5 +315,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1200
-  X: 66
-  Y: 45
+  X: -32
+  Y: -32
