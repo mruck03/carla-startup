@@ -14,6 +14,7 @@ import ros_compatibility as roscomp
 from ros_compatibility.exceptions import *
 from ros_compatibility.node import CompatibleNode
 from ros_compatibility.qos import QoSProfile, DurabilityPolicy
+from transforms3d.euler import euler2mat, quat2euler, euler2quat
 
 from carla_msgs.msg import CarlaWorldInfo
 from carla_waypoint_types.srv import GetWaypoint, GetActorWaypoint
@@ -25,6 +26,7 @@ import rospy
 from hybrid_astar import hybrid_astar_planning
 import tf
 import numpy as np
+from log_waypoints import * 
 
 from tf.transformations import quaternion_from_euler, euler_from_quaternion
 
@@ -116,6 +118,53 @@ class AstarPathPlanner(CompatibleNode):
         self.vehicle_frame = "{}".format(self.role_name) + "_rear"  # e.g., "ego_vehicle"
         self.global_frame = "map"  # Assuming "map" is the global reference frame
 
+
+        self.tf_listener_center = tf.TransformListener()
+        self.vehicle_frame_center = "{}".format(self.role_name)  # e.g., "ego_vehicle"
+
+        # (cur_trans, cur_quat) = self.tf_listener_center.lookupTransform(self.global_frame, self.vehicle_frame_center, rospy.Time(0))
+        datetime_now = datetime.now().strftime('%Y%m%d_%H%M%S')
+        self.log_filename = f"waypoints_log.txt"
+        self.log_filename_gt = f"waypoints_log_groundtruth.txt"
+
+        with open(self.log_filename, 'a') as f:
+            f.write("=======================")
+
+        with open(self.log_filename_gt, 'a') as f:
+            f.write("=======================")
+
+        self.timer = rospy.Timer(rospy.Duration(0.5), self.timer_callback)
+
+    def timer_callback(self, event):
+        (cur_trans, cur_quat) = self.tf_listener_center.lookupTransform(self.global_frame, self.vehicle_frame_center, rospy.Time(0))
+        carla_loc = carla.Location(cur_trans[0], -cur_trans[1], cur_trans[2])
+
+        roll, pitch, yaw = quat2euler([cur_quat[0],
+                                    cur_quat[1],
+                                    cur_quat[2],
+                                    cur_quat[3]])
+        carla_rot = trans.RPY_to_carla_rotation(roll, pitch, yaw)
+
+        gt_location = self.ego_vehicle.get_location()
+        gt_rot = self.ego_vehicle.get_transform().rotation 
+
+        log_line = f"{carla_loc.x:.3f}, {carla_loc.y:.3f}, {carla_loc.z:.3f}, {carla_rot.pitch:.2f}, {carla_rot.yaw:.2f}, {carla_rot.roll:.2f}\n"
+        log_line_gt= f"{gt_location.x:.3f}, {gt_location.y:.3f}, {gt_location.z:.3f}, {gt_rot.pitch:.2f}, {gt_rot.yaw:.2f}, {gt_rot.roll:.2f}\n"
+
+        with open(self.log_filename, 'a') as f:
+            f.write(log_line)
+
+        with open(self.log_filename_gt, 'a') as f:
+            f.write(log_line_gt)
+
+        goal_loc = self.goal.location
+        goal_yaw = self.goal.rotation.yaw
+        print("goal_loc", goal_loc)
+        if is_within_goal(carla_loc, carla_rot.yaw, goal_loc, goal_yaw):
+            print("Reached goal. Shutting down timer!")
+            self.timer.shutdown()
+            return 
+
     def destroy(self):
         """
         Destructor
@@ -124,11 +173,8 @@ class AstarPathPlanner(CompatibleNode):
         if self.on_tick:
             self.world.remove_on_tick(self.on_tick)
 
-    def get_waypoint(self, req, response=None):
-        """
-        Get the waypoint for a location
-        """
-        carla_position = carla.Location()
+    def get_waypoint(self, req, response=None):        
+
         carla_position.x = req.location.x
         carla_position.y = -req.location.y
         carla_position.z = req.location.z
