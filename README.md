@@ -4,7 +4,7 @@ This package was made with Ubuntu 20.04 in ROS Noetic.
 
 ## Requirments
  - Carla 0.9.13
- - Carla Ros Bridge: https://github.com/carla-simulator/ros-bridge
+ - Modified Carla Ros Bridge: https://github.com/mruck03/ros-bridge.git (Original - https://github.com/carla-simulator/ros-bridge)
  - SLAM Toolbox: https://github.com/SteveMacenski/slam_toolbox
 
 ## Getting Started
@@ -13,8 +13,8 @@ To start using this package, follow directions for Carla Ros Bridge to create a 
 ```
 mkdir -p ~/carla-ros-bridge/catkin_ws/src
 cd ~/carla-ros-bridge
-git clone --recurse-submodules https://github.com/carla-simulator/ros-bridge.git catkin_ws/src/ros-bridge
-git clone --recurse-submodules https://github.com/mruck03/carla-startup.git
+git clone --recurse-submodules https://github.com/mruck03/ros-bridge.git catkin_ws/src/ros-bridge
+git clone --recurse-submodules https://github.com/mruck03/carla-startup.git catkin_ws/src/carla-startup
 ```
 
 
