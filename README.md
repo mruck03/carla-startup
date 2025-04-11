@@ -34,11 +34,42 @@ catkin_make
 ```
 
 ## How to use
+
+### Simple Startup
 To use this package, make sure Carla is running. Then, source the build and then create a roscore to use features in the package
 ```
 source ~/carla-ros-bridge/catkin_ws/devel/setup.bash
 roscore
 ```
-After this, you can run the launch file in another terminal to create a car and start the self parking loop!
+After this, you can run the Slam_toolbox or ORBSLAM launch file in another terminal to create a car and start the self parking loop!
 ```
 roslaunch carla-startup slam_startup.launch
+```
+_(NOTE: Make sure the IP address in the slam_startup.launch file is correctly pointing to Carla)_
+
+After this, RViz should appear and you can see the car outline, the SLAM 2D occupancy map, and the trajectory to the goal pose. If this does not load you can load the config file under the Rviz folder.
+
+To set a new goal pose, you can use the 2D Goal pose in Rviz and select a point in the Rviz window, or publish a pose to /carla/$(arg role_name)/goal.
+
+### Spawning Pedestrians
+To spawn pedestrians in the environment, use the ROS publish command below
+```
+rostopic pub /carla_pedestrian_spawner/spawn_pedestrians std_msgs/Empty "{}"
+```
+This will spawn three pedestrians that patrol around the parking lot in a predefined path as seen in _spawn_pedestrian.py_.
+
+## Modifying for Personal Use
+
+### Launch Files
+The slam_startup launch file is the main file that runs all the nodes needed for the parking algorithm. You can look through to see the parameters used and what programs are running. It consists of:
+1. **carla-ros-bridge** - makes connection between ROS and Carla for sending commands to Carla.
+2. **Carla Spawner** - Spawns vehicle and sensors into scene at given spawn_point parameter.
+3. **Pointcloud to Laserscan** - Changes pointcloud given by lidar in carla to a laserscan to be used by Slam_toolbox.
+4. **Rviz** - Starts up Rviz viewer.
+5. **Slam_toolbox**/**Orbslam** - Slam method used for creating 2D occupancy map and localization.
+6. **Path Planner** - Path planning node that uses hybrid astar to reroute to new paths as the map updates or the goal changes.
+7. **Pedestrian Spawner** - Node that listens over a topic for if to spawn in or reset pedestrians.
+8. **Lidar Pedestrian Avoidance** - Node that uses semantic lidar to account for dynamic pedestrians in the environment.
+
+The main pieces of code that we introduce to this pipeline are the **Path Planner**, **Pedestrian spawner**, and **Lidar Pedestrian Avoidance**. The source code for these files can be seen in the src folder.
+
