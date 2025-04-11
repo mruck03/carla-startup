@@ -31,6 +31,8 @@ from log_waypoints import *
 from tf.transformations import quaternion_from_euler, euler_from_quaternion
 
 import time
+import os
+import rospkg
 
 class AstarPathPlanner(CompatibleNode):
 
@@ -124,32 +126,44 @@ class AstarPathPlanner(CompatibleNode):
 
         # (cur_trans, cur_quat) = self.tf_listener_center.lookupTransform(self.global_frame, self.vehicle_frame_center, rospy.Time(0))
         datetime_now = datetime.now().strftime('%Y%m%d_%H%M%S')
-        self.log_filename = f"waypoints_log.txt"
-        self.log_filename_gt = f"waypoints_log_groundtruth.txt"
+        rospack = rospkg.RosPack()
+        pkg_path = rospack.get_path('carla-startup')
+        log_dir = os.path.join(pkg_path, 'logs')
+        os.makedirs(log_dir, exist_ok=True)
 
-        with open(self.log_filename, 'a') as f:
-            f.write("=======================")
+        self.log_filename = os.path.join(log_dir, f"waypoints_log.txt")
+        self.log_filename_gt = os.path.join(log_dir, f"waypoints_log_groundtruth.txt")
 
-        with open(self.log_filename_gt, 'a') as f:
-            f.write("=======================")
 
-        self.timer = rospy.Timer(rospy.Duration(0.5), self.timer_callback)
+        # with open(self.log_filename, 'a') as f:
+        #     f.write("=======================")
+
+        # with open(self.log_filename_gt, 'a') as f:
+        #     f.write("=======================")
+
+        self.timer = rospy.Timer(rospy.Duration(0.2), self.timer_callback)
 
     def timer_callback(self, event):
+        print("TIMER CALLED")
+        current_time = time.time()
+
         (cur_trans, cur_quat) = self.tf_listener_center.lookupTransform(self.global_frame, self.vehicle_frame_center, rospy.Time(0))
         carla_loc = carla.Location(cur_trans[0], -cur_trans[1], cur_trans[2])
 
-        roll, pitch, yaw = quat2euler([cur_quat[0],
+        roll, pitch, yaw = quat2euler([cur_quat[3],
+                                    cur_quat[0],
                                     cur_quat[1],
-                                    cur_quat[2],
-                                    cur_quat[3]])
+                                    cur_quat[2]])
         carla_rot = trans.RPY_to_carla_rotation(roll, pitch, yaw)
 
         gt_location = self.ego_vehicle.get_location()
         gt_rot = self.ego_vehicle.get_transform().rotation 
 
-        log_line = f"{carla_loc.x:.3f}, {carla_loc.y:.3f}, {carla_loc.z:.3f}, {carla_rot.pitch:.2f}, {carla_rot.yaw:.2f}, {carla_rot.roll:.2f}\n"
-        log_line_gt= f"{gt_location.x:.3f}, {gt_location.y:.3f}, {gt_location.z:.3f}, {gt_rot.pitch:.2f}, {gt_rot.yaw:.2f}, {gt_rot.roll:.2f}\n"
+        loc_quat = trans.carla_rotation_to_ros_quaternion(carla_rot)
+        gt_quat = trans.carla_rotation_to_ros_quaternion(gt_rot)
+
+        log_line = f"{current_time} {carla_loc.x:.3f} {carla_loc.y:.3f} {carla_loc.z:.3f} {loc_quat.x:.4f} {loc_quat.y:.4f} {loc_quat.z:.4f} {loc_quat.w:.4f}\n"
+        log_line_gt= f"{current_time} {gt_location.x:.3f} {gt_location.y:.3f} {gt_location.z:.3f} {gt_quat.x:.4f} {gt_quat.y:.4f} {gt_quat.z:.4f} {gt_quat.w:.4f}\n"
 
         with open(self.log_filename, 'a') as f:
             f.write(log_line)
@@ -174,6 +188,8 @@ class AstarPathPlanner(CompatibleNode):
             self.world.remove_on_tick(self.on_tick)
 
     def get_waypoint(self, req, response=None):        
+
+        carla_position = carla.Location()
 
         carla_position.x = req.location.x
         carla_position.y = -req.location.y
