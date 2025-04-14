@@ -8,11 +8,11 @@
   <!-- Ego vehicle -->
   <arg name='role_name' default='ego_vehicle'/>
   <arg name="vehicle_filter" default='vehicle.*'/>
-  <arg name="spawn_point" default="-55, -190, 0.3, 0, 0, 180"/>
+  <arg name="spawn_point" default="-60, -190, 0.3, 0, 0, 90"/>
   <!-- <arg name="spawn_point" default=""/> -->
 
   <!-- Initial Goal Pose  -->
-  <param name="initial_goal/position" value="-51.0, -170.0, 0.0" />
+  <param name="initial_goal/position" value="-51.0, -173.0, 0.0" />
   <param name="initial_goal/orientation" value="0.0, 0.0, 0.0, 1.0" />
 
   <!-- Map to load on startup (either a predefined CARLA town (e.g. 'Town01'), or a OpenDRIVE map file) -->
