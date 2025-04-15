@@ -32,6 +32,12 @@ from tf.transformations import quaternion_from_euler, euler_from_quaternion
 
 import time
 
+
+THRESHOLD = 0.3
+
+def on_collision(event):
+    print("COLLISION")
+
 class AstarPathPlanner(CompatibleNode):
 
     """
@@ -78,6 +84,9 @@ class AstarPathPlanner(CompatibleNode):
         print(position[0])
         print(orientation[0])
 
+        self.goal_position = position[:3]
+        
+
         goal = PoseStamped()
         goal.header.frame_id = "map"
         goal.header.stamp = rospy.Time.now()
@@ -90,6 +99,8 @@ class AstarPathPlanner(CompatibleNode):
         goal.pose.orientation.y = float(orientation[1])
         goal.pose.orientation.z = float(orientation[2])
         goal.pose.orientation.w = float(orientation[3])
+
+        self.goal_orientation = goal.pose.orientation
 
         self.goal = trans.ros_pose_to_carla_transform(goal.pose)
 
@@ -124,18 +135,51 @@ class AstarPathPlanner(CompatibleNode):
 
         # (cur_trans, cur_quat) = self.tf_listener_center.lookupTransform(self.global_frame, self.vehicle_frame_center, rospy.Time(0))
         datetime_now = datetime.now().strftime('%Y%m%d_%H%M%S')
-        self.log_filename = f"waypoints_log.txt"
-        self.log_filename_gt = f"waypoints_log_groundtruth.txt"
+        self.attached = False
+        # self.log_filename = f"waypoints_log.txt"
+        # self.log_filename_gt = f"waypoints_log_groundtruth.txt"
 
-        with open(self.log_filename, 'a') as f:
-            f.write("=======================")
+        # with open(self.log_filename, 'a') as f:
+        #     f.write("=======================")
 
-        with open(self.log_filename_gt, 'a') as f:
-            f.write("=======================")
+        # with open(self.log_filename_gt, 'a') as f:
+        #     f.write("=======================")
 
-        self.timer = rospy.Timer(rospy.Duration(0.5), self.timer_callback)
+        self.timer = rospy.Timer(rospy.Duration(0.2 ), self.timer_callback)
+        
+    def quaternion_to_yaw_deg(self, q):
+        """
+        q is an object with attributes x, y, z, w (CARLA-style quaternion)
+        Returns yaw angle in degrees
+        """
+        siny_cosp = 2 * (q.w * q.z + q.x * q.y)
+        cosy_cosp = 1 - 2 * (q.y**2 + q.z**2)
+        yaw_rad = math.atan2(siny_cosp, cosy_cosp)
+        return math.degrees(yaw_rad)
+
+    def reached_goal(self, loc, rot):
+        goal = np.array([float(x) for x in self.goal_position])
+        current = np.array([loc.x, -loc.y, loc.z])
+
+        dist = np.linalg.norm(goal - current)
+        print("\nDISTANCE to GOAL: ", dist)
+        
+        yaw_goal = self.quaternion_to_yaw_deg(self.goal_orientation)
+        # angle_dist = abs(rot.yaw - yaw_goal) % 360
+
+        # print("ANGLE to GOAL: ", rot.yaw, yaw_goal, angle_dist)
+        
+        return dist < 1.0
 
     def timer_callback(self, event):
+        # if ego vehicle is defined and we haven't attached a collision detector
+        if self.ego_vehicle and not self.attached:
+            blueprint_library = self.world.get_blueprint_library()
+            collision_sensor_bp = blueprint_library.find('sensor.other.collision')
+            collision_sensor = self.world.spawn_actor(collision_sensor_bp, carla.Transform(), attach_to=self.ego_vehicle)
+            collision_sensor.listen(lambda event: on_collision(event))
+            self.attached = True
+
         (cur_trans, cur_quat) = self.tf_listener_center.lookupTransform(self.global_frame, self.vehicle_frame_center, rospy.Time(0))
         carla_loc = carla.Location(cur_trans[0], -cur_trans[1], cur_trans[2])
 
@@ -145,21 +189,41 @@ class AstarPathPlanner(CompatibleNode):
                                     cur_quat[3]])
         carla_rot = trans.RPY_to_carla_rotation(roll, pitch, yaw)
 
+        velocity = self.ego_vehicle.get_velocity()
+        speed = (velocity.x**2 + velocity.y**2)**0.5
+        moving = speed > 0.01
+        print("speed" , speed)
+        print("moving" , moving)
+        if self.reached_goal(carla_loc, carla_rot) and not moving:
+            print("FINISHED")
+            return 
+
         gt_location = self.ego_vehicle.get_location()
         gt_rot = self.ego_vehicle.get_transform().rotation 
 
-        log_line = f"{carla_loc.x:.3f}, {carla_loc.y:.3f}, {carla_loc.z:.3f}, {carla_rot.pitch:.2f}, {carla_rot.yaw:.2f}, {carla_rot.roll:.2f}\n"
-        log_line_gt= f"{gt_location.x:.3f}, {gt_location.y:.3f}, {gt_location.z:.3f}, {gt_rot.pitch:.2f}, {gt_rot.yaw:.2f}, {gt_rot.roll:.2f}\n"
+        # log_line = f"{carla_loc.x:.3f}, {carla_loc.y:.3f}, {carla_loc.z:.3f}, {carla_rot.pitch:.2f}, {carla_rot.yaw:.2f}, {carla_rot.roll:.2f}\n"
+        # log_line_gt= f"{gt_location.x:.3f}, {gt_location.y:.3f}, {gt_location.z:.3f}, {gt_rot.pitch:.2f}, {gt_rot.yaw:.2f}, {gt_rot.roll:.2f}\n"
 
-        with open(self.log_filename, 'a') as f:
-            f.write(log_line)
+        loc_quat = trans.carla_rotation_to_ros_quaternion(carla_rot)
+        gt_quat = trans.carla_rotation_to_ros_quaternion(gt_rot)     
+        current_time = time.time()  
+        log_line = f"{current_time} {carla_loc.x:.3f} {carla_loc.y:.3f} {carla_loc.z:.3f} {loc_quat.x:.4f} {loc_quat.y:.4f} {loc_quat.z:.4f} {loc_quat.w:.4f}\n"
+        log_line_gt= f"{current_time} {gt_location.x:.3f} {gt_location.y:.3f} {gt_location.z:.3f} {gt_quat.x:.4f} {gt_quat.y:.4f} {gt_quat.z:.4f} {gt_quat.w:.4f}\n"
+        
+        
+        print("LOCALIZED POSE INFO: " + log_line)
+        print("GROUNDTRUTH POSE INFO: " + log_line_gt)
 
-        with open(self.log_filename_gt, 'a') as f:
-            f.write(log_line_gt)
+        # with open(self.log_filename, 'a') as f:
+        #     f.write(log_line)
+
+        # with open(self.log_filename_gtis_within_goal, 'a') as f:
+        #     f.write(log_line_gt)
 
         goal_loc = self.goal.location
         goal_yaw = self.goal.rotation.yaw
         print("goal_loc", goal_loc)
+
         if is_within_goal(carla_loc, carla_rot.yaw, goal_loc, goal_yaw):
             print("Reached goal. Shutting down timer!")
             self.timer.shutdown()
