@@ -15,6 +15,8 @@ from carla_msgs.msg import CarlaWorldInfo
 from carla_waypoint_types.srv import GetWaypoint, GetActorWaypoint
 from std_msgs.msg import Empty
 
+import rospy
+
 
 class PedestrianSpawner(CompatibleNode):
 
@@ -41,11 +43,13 @@ class PedestrianSpawner(CompatibleNode):
         # )
         
         self.place_to_coords = {
-            "cornerTopLeft" : (-65.468666, 188.412048),
-            "cornerTopRight" : (-65.468666, 157.412048),
-            "middle1" :  (-55.468666, 168.412048),
-            "middle2" :  (-57.468666, 168.412048),
-            "middle3" :  (-59.468666, 168.412048),
+            # "cornerTopLeft" : (-65.468666, 188.412048),
+            # "cornerTopRight" : (-65.468666, 157.412048),
+            # "middle1" :  (-55.468666, 168.412048),
+            # "middle2" :  (-57.468666, 168.412048),
+            # "middle3" :  (-59.468666, 180.412048),
+            "dynamic" : (-52, 180),
+            "static" : (-62, 174) 
         }
 
         self.direction = {
@@ -54,6 +58,12 @@ class PedestrianSpawner(CompatibleNode):
             "diagonalBottomRight" : (1, -1),
             "diagonalBottomLeft" : (-1, -1),
         }
+
+        self.spawn_dynamic = rospy.get_param('spawn_dynamic', False)
+        self.spawn_static = rospy.get_param('spawn_static', False)
+
+        self.spawn_multi_peds(None)
+
 
     def destroy(self):
         """
@@ -71,7 +81,7 @@ class PedestrianSpawner(CompatibleNode):
         
         # Define spawn points for the pedestrian
 
-        ped_loc = carla.Location(x=start_x, y=start_y, z=0.1)
+        ped_loc = carla.Location(x=start_x, y=start_y, z=1)
 
         ped_transform = carla.Transform(ped_loc, carla.Rotation())
         # Spawn the pedestrian
@@ -102,7 +112,7 @@ class PedestrianSpawner(CompatibleNode):
         return direction
     
     # Function to move the pedestrian between two points
-    def patrol(self, pedestrian, point1, point2, speed=2.4, num_patrol=100):
+    def patrol(self, pedestrian, point1, point2, speed=3.0, num_patrol=100):
         # num 
         print("Patrol Called!")
         control = carla.WalkerControl()
@@ -125,6 +135,10 @@ class PedestrianSpawner(CompatibleNode):
             while current_location.distance(point2) > 0.5:
                 time.sleep(0.1)
                 current_location = pedestrian.get_location()
+                direction = self.calculate_direction(current_location, point2)
+                control.direction = direction
+                pedestrian.apply_control(control)
+                # print(direction)
 
             # Stop the pedestrian briefly
             control.speed = 0
@@ -142,6 +156,9 @@ class PedestrianSpawner(CompatibleNode):
             while current_location.distance(point1) > 0.5:
                 time.sleep(0.1)
                 current_location = pedestrian.get_location()
+                direction = self.calculate_direction(current_location, point2)
+                control.direction = direction
+                pedestrian.apply_control(control)
 
             control.speed = 0
             pedestrian.apply_control(control)
@@ -150,14 +167,14 @@ class PedestrianSpawner(CompatibleNode):
     def spawn_multi_peds(self, msg):
 
         self.destroy_all_peds()
-        cornerTopLeft = self.place_to_coords["cornerTopLeft"]
-        # Spawn the pedestrian at the top left and make it move to the bottom right
-        pedestrian = self.spawn_pedestrian(cornerTopLeft[0], cornerTopLeft[1])
-        point1 = carla.Location(x=cornerTopLeft[0], y=cornerTopLeft[1], z=1)
-        point2 = carla.Location(x=cornerTopLeft[0] + 20, y=cornerTopLeft[1] - 20, z=1)
-        patrol_thread = threading.Thread(target=self.patrol, args=(pedestrian, point1, point2, 2.3))
-        patrol_thread.daemon = True 
-        patrol_thread.start()
+        # cornerTopLeft = self.place_to_coords["cornerTopLeft"]
+        # # Spawn the pedestrian at the top left and make it move to the bottom right
+        # pedestrian = self.spawn_pedestrian(cornerTopLeft[0], cornerTopLeft[1])
+        # point1 = carla.Location(x=cornerTopLeft[0], y=cornerTopLeft[1], z=1)
+        # point2 = carla.Location(x=cornerTopLeft[0] + 20, y=cornerTopLeft[1] - 20, z=1)
+        # patrol_thread = threading.Thread(target=self.patrol, args=(pedestrian, point1, point2, 2.3))
+        # patrol_thread.daemon = True 
+        # patrol_thread.start()
 
         # cornerTopRight = self.place_to_coords["cornerTopRight"]
         # # Spawn the pedestrian at the top Right and make it move to the bottom left
@@ -168,24 +185,28 @@ class PedestrianSpawner(CompatibleNode):
         # patrol_thread.daemon = True 
         # patrol_thread.start()
 
-        middle = self.place_to_coords["middle1"]
-        # Spawn the pedestrian at the center and make it move left and right
-        pedestrian = self.spawn_pedestrian(middle[0], middle[1])
-        point1 = carla.Location(x=middle[0], y=middle[1], z=1)
-        point2 = carla.Location(x=middle[0], y=middle[1] - 10, z=1)
-        patrol_thread = threading.Thread(target=self.patrol, args=(pedestrian, point1, point2, 1.5))
-        patrol_thread.daemon = True 
-        patrol_thread.start()
+        # middle = self.place_to_coords["middle1"]
+        # # Spawn the pedestrian at the center and make it move left and right
+        # pedestrian = self.spawn_pedestrian(middle[0], middle[1])
+        # point1 = carla.Location(x=middle[0], y=middle[1], z=1)
+        # point2 = carla.Location(x=middle[0], y=middle[1] - 10, z=1)
+        # patrol_thread = threading.Thread(target=self.patrol, args=(pedestrian, point1, point2, 1.5))
+        # patrol_thread.daemon = True 
+        # patrol_thread.start()
 
+        if self.spawn_dynamic:
+            middle = self.place_to_coords["dynamic"]
+            # Spawn the pedestrian at the center and make it move left and right
+            pedestrian = self.spawn_pedestrian(middle[0], middle[1])
+            point1 = carla.Location(x=middle[0], y=middle[1], z=1)
+            point2 = carla.Location(x=middle[0]-20, y=middle[1]-2, z=1)
+            patrol_thread = threading.Thread(target=self.patrol, args=(pedestrian, point1, point2, 3))
+            patrol_thread.daemon = True 
+            patrol_thread.start()
 
-        middle = self.place_to_coords["middle2"]
-        # Spawn the pedestrian at the center and make it move left and right
-        pedestrian = self.spawn_pedestrian(middle[0], middle[1])
-        point1 = carla.Location(x=middle[0], y=middle[1], z=1)
-        point2 = carla.Location(x=middle[0], y=middle[1] + 10, z=1)
-        patrol_thread = threading.Thread(target=self.patrol, args=(pedestrian, point1, point2, 1.5))
-        patrol_thread.daemon = True 
-        patrol_thread.start()
+        if self.spawn_static:
+            middle = self.place_to_coords["static"]
+            pedestrian = self.spawn_pedestrian(middle[0], middle[1])
 
     def connect_to_carla(self):
 

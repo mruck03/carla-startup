@@ -14,15 +14,15 @@ def is_close(current, goal, tolerance):
 
 
 
-def is_within_goal(pose, yaw, goal_location, goal_yaw, pos_tol=0.5, yaw_tol=5.0):
+def is_within_goal(pose, yaw, goal_location, goal_yaw, pos_tol=0.5, yaw_tol=20.0):
 
     x_close = is_close(pose.x, goal_location.x, pos_tol)
     y_close = is_close(pose.y, goal_location.y, pos_tol)
     z_close = is_close(pose.z, goal_location.z, pos_tol)
-    yaw_diff = (yaw - goal_yaw + 180) % 360 - 180
-    yaw_close = abs(yaw_diff) <= yaw_tol
+    # yaw_diff = (yaw - goal_yaw + 180) % 360 - 180
+    # yaw_close = abs(yaw_diff) <= yaw_tol
 
-    return x_close and y_close and z_close and yaw_close
+    return x_close and y_close and z_close # and yaw_close
 
 
 

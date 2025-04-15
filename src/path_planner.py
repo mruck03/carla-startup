@@ -31,6 +31,8 @@ from log_waypoints import *
 from tf.transformations import quaternion_from_euler, euler_from_quaternion
 
 import time
+import os
+import rospkg
 
 
 THRESHOLD = 0.3
@@ -183,10 +185,10 @@ class AstarPathPlanner(CompatibleNode):
         (cur_trans, cur_quat) = self.tf_listener_center.lookupTransform(self.global_frame, self.vehicle_frame_center, rospy.Time(0))
         carla_loc = carla.Location(cur_trans[0], -cur_trans[1], cur_trans[2])
 
-        roll, pitch, yaw = quat2euler([cur_quat[0],
+        roll, pitch, yaw = quat2euler([cur_quat[3],
+                                    cur_quat[0],
                                     cur_quat[1],
-                                    cur_quat[2],
-                                    cur_quat[3]])
+                                    cur_quat[2]])
         carla_rot = trans.RPY_to_carla_rotation(roll, pitch, yaw)
 
         velocity = self.ego_vehicle.get_velocity()
@@ -238,6 +240,8 @@ class AstarPathPlanner(CompatibleNode):
             self.world.remove_on_tick(self.on_tick)
 
     def get_waypoint(self, req, response=None):        
+
+        carla_position = carla.Location()
 
         carla_position.x = req.location.x
         carla_position.y = -req.location.y

@@ -43,7 +43,7 @@ class C:  # Parameter config
     WB = 2.875  # [m] Wheel base (Tesla Model 3)
     TR = 0.337  # [m] Tyre radius (Tesla Model 3)
     TW = 0.205  # [m] Tyre width (Tesla Model 3)
-    MAX_STEER = 0.5  # [rad] maximum steering angle (unchanged, assuming similar to general vehicles)
+    MAX_STEER = 0.4  # [rad] maximum steering angle (unchanged, assuming similar to general vehicles)
 
 
 
