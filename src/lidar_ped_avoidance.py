@@ -138,7 +138,7 @@ class PedestrianAvoidance(CompatibleNode):
         if self.prev_pedestrian_positions is not None and len(ped_pos) > 0 and len(self.prev_pedestrian_positions) > 0:
             dists = np.linalg.norm(ped_pos[:, None] - self.prev_pedestrian_positions[None, :], axis=2)
             min_dists = np.min(dists, axis=1)
-            is_moving = min_dists > 0.02  # movement threshold in meters/frame
+            is_moving = min_dists > 0.09  # movement threshold in meters/frame
 
             dynamic_pedestrians = ped_pos[is_moving]
         else:
