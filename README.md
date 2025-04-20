@@ -1,8 +1,19 @@
 # Self Parking Package for Carla
 
-This package was made with Ubuntu 20.04 in ROS Noetic. 
+This project presents the development of an open-source autonomous car parking system designed for dynamic environments, addressing the gap in existing open-source solutions that often focus on holonomic path planning or simplified 2D scenarios. Unlike previous approaches, our system incorporates the non-holonomic constraints of the vehicle in a 3D scenario with moving pedestrians, providing a more realistic representation of real-world parking conditions. The system is implemented and tested in the CARLA simulation environment, with edge cases such as multiple static and patrolling pedestrians in the parking lot. 
+
+This project was made for the EECS 568 / ROB 530 final project.
+
+Team Members:
+- Max Rucker
+- Bernard Yap
+- Jose Eyzaguirre
+- Pranav Mallela
+
+Project Video - 
 
 ## Requirments
+This package was made with Ubuntu 20.04 in ROS Noetic.
  - Carla 0.9.13
  - Modified Carla Ros Bridge: https://github.com/mruck03/ros-bridge.git (Original - https://github.com/carla-simulator/ros-bridge)
  - SLAM Toolbox: https://github.com/SteveMacenski/slam_toolbox
