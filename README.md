@@ -10,7 +10,7 @@ Team Members:
 - Jose Eyzaguirre
 - Pranav Mallela
 
-Project Video - 
+Project Video - https://www.youtube.com/watch?v=ddkKPQPK3gE&ab_channel=KahhuanYap
 
 ## Requirments
 This package was made with Ubuntu 20.04 in ROS Noetic.
